@@ -5,7 +5,7 @@ import java.io.File
 import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
-import akka.Done
+import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
@@ -36,7 +36,7 @@ object UploadingFiles extends App with DefaultJsonProtocol with SprayJsonSupport
             |<html>
             |  <body>
             |    <form action="/upload" method="post" enctype="multipart/form-data">
-            |      <input type="file" name="myFil">
+            |      <input type="file" name="myFile">
             |      <button type="submit">Upload</button>
             |    </form>
             |  </body>
@@ -50,7 +50,7 @@ object UploadingFiles extends App with DefaultJsonProtocol with SprayJsonSupport
 
           entity(as[Multipart.FormData]) { formdata =>
             val partsSource: Source[FormData.BodyPart, Any] = formdata.parts //Get The bodyPart from the file Data
-            val partsFlow   = Flow[Multipart.FormData.BodyPart].map { fileData => {
+            val partsFlow: Flow[FormData.BodyPart, Either[(Source[ByteString, Any], File), Throwable], NotUsed] = Flow[Multipart.FormData.BodyPart].map { fileData => {
               if (fileData.name == "myFile") {
                 val filename = "./data/" + fileData.filename.getOrElse("tempFile_" + System.currentTimeMillis())
                 val file = new File(filename)
@@ -61,7 +61,7 @@ object UploadingFiles extends App with DefaultJsonProtocol with SprayJsonSupport
               }
              }
             }
-            val fileSink = Sink.fold[Future[IOResult], Either[(Source[ByteString, Any], File), RuntimeException]](Future(new IOResult(1L, Success(Done)))) {
+            val fileSink = Sink.fold[Future[IOResult], Either[(Source[ByteString, Any], File), Throwable]](Future(new IOResult(1L, Success(Done)))) {
               case (_, Left((src, file))) =>
                 src.runWith(FileIO.toPath(file.toPath))
 
