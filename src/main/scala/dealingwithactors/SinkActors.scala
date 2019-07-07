@@ -31,16 +31,18 @@ object SinkActors extends App {
         self ! PoisonPill
 
 
-      case msg =>
+      case msg  : Int =>
         log.info(s"Just got the message $msg")
         sender()  ! StreamAck // this has to be sent back into the stream, if not, it'll backpressure after receiving the first element
     }
   }
 
 
-  val sinkActor = system.actorOf(Props[SinkActor])
+  val sinkActor = system.actorOf(Props[SinkActor], "sinkActor")
 
   import SinkActor._
+
+
  val sinkActorAck =  Sink.actorRefWithAck(
     ref = sinkActor,
     onInitMessage = StreamInit,
@@ -49,6 +51,10 @@ object SinkActors extends App {
     onFailureMessage = ex => StreamFailed(ex)
   )
 
-  Source(List(1,2)).runWith(sinkActorAck)
+  //Source(List(1,2)).runWith(sinkActorAck)
+
+  val sinkWithActor = Sink.actorRef[Int](sinkActor , StreamComplete)
+
+  Source(1 to 10).runWith(sinkWithActor)
 
 }

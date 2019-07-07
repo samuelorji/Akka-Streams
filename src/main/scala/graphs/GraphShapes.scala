@@ -19,7 +19,7 @@ object GraphShapes extends App {
     import GraphDSL.Implicits._
     val zip1 = builder.add(ZipWith[Int,Int,Int](Math.max))
     val zip2 = builder.add(ZipWith[Int,Int,Int](Math.max))
-
+6
     zip1.out ~> zip2.in0
 
     UniformFanInShape(zip2.out,zip1.in0,zip2.in1,zip1.in1)

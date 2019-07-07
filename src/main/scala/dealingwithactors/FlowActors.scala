@@ -31,5 +31,9 @@ object FlowActors extends App {
   val actorFlow = Flow[Int].ask[Int](4)(simpleactor)
 
  // numberSource.via(actorFlow).to(Sink.ignore).run
+
+  /**
+    * the ask method sends the message to the actor from the source
+    */
   numberSource.ask[Int](4)(simpleactor).runWith(Sink.ignore)
 }

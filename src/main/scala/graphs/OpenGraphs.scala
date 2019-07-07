@@ -2,7 +2,7 @@ package graphs
 
 import akka.actor.ActorSystem
 import akka.stream._
-import akka.stream.scaladsl.{Broadcast, Concat, Flow, GraphDSL, RunnableGraph, Sink, Source}
+import akka.stream.scaladsl.{Broadcast, Concat, Flow, GraphDSL, Partition, RunnableGraph, Sink, Source}
 
 object OpenGraphs extends  App {
   implicit val system        = ActorSystem()
@@ -62,40 +62,6 @@ object OpenGraphs extends  App {
       FlowShape(incrementerShape.in,multiplierShape.out)
   })
 
-//  source1.via(flowGraph).runWith(sink1)
-
-//  def flowFromSource[A,B](sink : Sink[B,_] , source : Source[A , _]) : Flow[B,A,_] = {
-//
-//    Flow.fromGraph(
-//      GraphDSL.create(){ implicit builder =>
-//
-//        val sourceShape = builder.add(source)
-//        val sinkShape   = builder.add(sink)
-//
-//        FlowShape(sinkShape.in,sourceShape.out)
-//
-//      }
-//    )
-//  }
-
-//  val fl = Flow.fromSinkAndSource()
-  /*
-  object SM{
-  def main(args: Array[String]): Unit = {
-    def hello = {
-      print("Hello ")
-      10L
-    }
-    println(hello)
-  }
-}
-
-class SM {
-  def checkIt(s: String): String = if (s.isEmpty) "EMPTY"
-  else "NOT EMPTY"
-}
-   */
-
   case class Transaction(id : String , amnt : Int)
 
   val transactionSource = ( 1 to 10).map(x => Transaction(x.toString, x * 10000))
@@ -106,6 +72,30 @@ class SM {
   val sink1  = Sink.foreach[String](x => println(s"Sink 1 : Suspicious    : $x"))
   val sink2  = Sink.foreach[String](x => println(s"Sink 2 : NonSuspicious : $x"))
   val transSink    = Sink.foreach[Transaction](x => println(s"Sink 3 : All Transactions $x"))
+
+
+  val checker = GraphDSL.create(){implicit builder =>
+    val partitioner = builder.add(Partition[Transaction](2, transaction => if (transaction.amnt > 50000) 0 else 1))
+
+    new FanOutShape2[Transaction,Transaction,Transaction](partitioner.in,partitioner.out(0),partitioner.out(1))
+  }
+
+  val graph = RunnableGraph.fromGraph(
+    GraphDSL.create(){implicit builder =>
+    import GraphDSL.Implicits._
+    val checkerShape = builder.add(checker)
+    val suspiciousIdMapper = builder.add(Flow[Transaction].map(_.id))
+    val NonSuspiciousIdMapper = builder.add(Flow[Transaction].map(_.id))
+    Source(transactionSource) ~> checkerShape.in
+
+    checkerShape.out0  ~>  suspiciousIdMapper    ~> sink1
+    checkerShape.out1  ~>  NonSuspiciousIdMapper ~> sink2
+    ClosedShape
+
+
+  }
+  )
+  graph.run()
 
   val checkFlow = GraphDSL.create(){ implicit builder =>
 
@@ -118,7 +108,6 @@ class SM {
     broadcast ~> nonSuspiciousFlowShape
     new FanOutShape3(broadcast.in,suspiciousFlowShape.out,nonSuspiciousFlowShape.out,broadcast.out(2))
   }
-
 
   val runGraph = RunnableGraph.fromGraph(
     GraphDSL.create(){ implicit builder =>

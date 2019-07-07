@@ -18,10 +18,10 @@ object GraphCycles extends  App {
       println(s"Accelerating $x")
       x + 1
     })
-    val merge  = builder.add(Merge[Int](2,true))
+    val merge  = builder.add(MergePreferred[Int](2,true))
 
     source ~> merge ~>            flow
-              merge <~            flow
+              merge.preferred <~            flow
 
     ClosedShape
   }

@@ -33,8 +33,8 @@ object BidirectionalFlow extends App {
       val bidiShape = builder.add(bidirectionalFlowGraph)
       val encryptionSourceShape = builder.add(encryptedource)
       val decryptionSourceShape = builder.add(dencryptedource)
-      decryptionSourceShape ~> bidiShape.in1           ; bidiShape.out1 ~> encryptionSink
-      decryptionSink         <~ bidiShape.out2                  ; bidiShape.in2 <~  encryptionSourceShape
+      decryptionSourceShape ~> bidiShape.in1           ;  bidiShape.out1 ~> encryptionSink
+      decryptionSink        <~ bidiShape.out2          ;  bidiShape.in2 <~  encryptionSourceShape
 
       ClosedShape
     }

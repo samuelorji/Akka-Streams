@@ -57,6 +57,7 @@ object MapAsync extends App {
   import akka.pattern.ask
   import scala.concurrent.duration._
   implicit val timeout = Timeout(5 seconds)
-                   //you can use either mapAsync or mapAsyncUnordered , with unordered, the results come in without ordering . But with async....the results are first collected then ordered
+   //you can use either mapAsync or mapAsyncUnordered , with unordered, the results come in without ordering .
+  // But with async....the results are first collected then ordered
   Source(eventList).mapAsyncUnordered(4)(event => (pagerActor ? event).mapTo[String]).runWith(Sink.foreach[String](x => println(s"Successfully sent email to $x")) )
 }
