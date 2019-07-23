@@ -3,11 +3,13 @@ package http
 import java.io.File
 
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 
 import akka.{Done, NotUsed}
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
+import akka.http.scaladsl.common.EntityStreamingSupport
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
 import akka.http.scaladsl.model.Multipart.FormData
 import akka.http.scaladsl.model._
@@ -19,13 +21,27 @@ import akka.util.{ByteString, Timeout}
 
 import spray.json._
 
-object UploadingFiles extends App with DefaultJsonProtocol with SprayJsonSupport {
+object UploadingFiles extends App
+  with DefaultJsonProtocol
+  with SprayJsonSupport {
 
 
   implicit val system = ActorSystem("UploadingFiles")
   implicit val materializer = ActorMaterializer()
 
   import scala.concurrent.ExecutionContext.Implicits.global
+
+  case class Tweet(name : String)
+
+  implicit val tweetFormat = jsonFormat1(Tweet.apply)
+
+  val tweets = (1 to 50).map(x => Tweet(x.toString))
+
+  val newline = ByteString("\n")
+
+  implicit val jsonStreamingSupport = EntityStreamingSupport.json()
+    .withFramingRenderer(Flow[ByteString].map(bs => bs ++ newline))
+
 
   val routes =
     (pathEndOrSingleSlash & get) {
@@ -88,9 +104,9 @@ object UploadingFiles extends App with DefaultJsonProtocol with SprayJsonSupport
         }
     } ~
       (path("download") & extractLog) { log =>
-      val file = new File("./data/file.jpg")
+      val file = new File("./data/travis.mp4")
         if(file.exists()){
-          respondWithHeaders(RawHeader("Content-Disposition",s"""attachment; filename="filename.jpg"""")) {
+          respondWithHeaders(/*RawHeader("Content-Disposition",s"""attachment; filename="filename.jpg"""")*/) {
             complete(HttpEntity(ContentTypes.`application/octet-stream`, FileIO.fromPath(file.toPath)))
           }
         }else{
@@ -99,7 +115,8 @@ object UploadingFiles extends App with DefaultJsonProtocol with SprayJsonSupport
         }
     } ~
       path("error") {
-      complete("Error page")
+        val source : Source[Tweet,NotUsed] = Source(tweets).throttle(10,5 seconds)
+        complete(source)
     }
   Http().bindAndHandle(routes,"localhost",9092)
 
